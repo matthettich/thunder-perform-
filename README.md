@@ -31,8 +31,8 @@ edits into the clip.
   - It has no service worker or update checks.
   - Each audio worklet is added to the shared context once (`__thunderPerform.once`), for both decks.
   - `window.__deck`: `ready()`, `open(projectText)`, `play(at, row)`, `stop(at)`, `setBpm(bpm, at)`, `info()`, `save()`.
-  - `ready()` waits for the deck's Worker to render every pad (falling back to the page thread only without one).
     Times are on the shared AudioContext clock.
+  - `ready()` waits for the deck's Worker to render every pad (falling back to the page thread only without one).
 - **The clock** (this page): beats count from an anchor; a tempo change re-anchors so the beat count never
   jumps. A launch waits for the next beat, bar, 2 or 4 bars.
 
