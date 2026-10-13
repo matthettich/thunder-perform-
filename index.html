@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>...Thunder Perform</title>
+<style>
+:root{--bg:#0e0f12;--panel:#16181d;--line:#2a2e37;--ink:#e8e9ec;--dim:#8a8f9c;--acc:#4fd18a;--warn:#e8b93c;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.4 system-ui,sans-serif;height:100vh;display:flex;flex-direction:column}
+header{display:flex;gap:16px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+header h1{font-size:15px;font-weight:600;margin:0 8px 0 0;letter-spacing:.02em}
+label{color:var(--dim);display:flex;gap:6px;align-items:center}
+input[type=number]{width:70px}
+input,select,button{background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:5px 9px;font:inherit}
+button{cursor:pointer}
+button:hover{border-color:var(--dim)}
+button.on{border-color:var(--acc);color:var(--acc)}
+#beat{display:flex;gap:4px}
+#beat i{width:10px;height:10px;border-radius:50%;background:var(--line)}
+#beat i.lit{background:var(--acc)}
+main{flex:1;display:grid;grid-template-columns:1fr 220px 1fr;min-height:0}
+.deck{display:flex;flex-direction:column;min-width:0;border-right:1px solid var(--line)}
+.deck:last-child{border-right:0;border-left:1px solid var(--line)}
+.dbar{display:flex;gap:8px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.dbar b{font-weight:600}
+.dname{color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:80px}
+.state{font-size:12px;color:var(--dim)}
+.state.armed{color:var(--warn)}
+.state.playing{color:var(--acc)}
+iframe{flex:1;border:0;width:100%;background:#000}
+.mixer{display:flex;flex-direction:column;gap:14px;padding:14px;align-items:stretch}
+.mixer h2{font-size:12px;color:var(--dim);font-weight:500;margin:0;text-transform:uppercase;letter-spacing:.08em}
+.chs{display:flex;justify-content:space-around}
+.ch{display:flex;flex-direction:column;align-items:center;gap:6px}
+.ch input[type=range]{writing-mode:vertical-lr;direction:rtl;height:160px}
+input[type=range]{accent-color:var(--acc)}
+#xf{width:100%}
+.note{font-size:12px;color:var(--dim)}
+#start{position:fixed;inset:0;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;z-index:5}
+#start button{font-size:16px;padding:12px 22px}
+</style>
+</head>
+<body>
+<div id="start"><button id="go" type="button">Start audio</button></div>
+<header>
+  <h1>...Thunder Perform</h1>
+  <label>Tempo <input id="bpm" type="number" min="40" max="300" step="0.1" value="120"></label>
+  <label>Launch on <select id="quant"><option value="1">next beat</option><option value="4" selected>next bar</option><option value="8">2 bars</option><option value="16">4 bars</option></select></label>
+  <div id="beat"><i></i><i></i><i></i><i></i></div>
+  <span class="note">Sync test: both decks run on one clock. Launches land on the next beat/bar.</span>
+</header>
+<main>
+  <section class="deck" data-d="a">
+    <div class="dbar"><b>A</b><span class="dname">loading…</span>
+      <button class="open" type="button">Open project…</button>
+      <button class="play" type="button">Play</button><button class="stop" type="button">Stop</button>
+      <span class="state"></span></div>
+  </section>
+  <section class="mixer">
+    <h2>Mixer</h2>
+    <div class="chs">
+      <div class="ch"><input type="range" class="gain" data-d="a" min="0" max="1.25" step="0.01" value="1"><span>A</span></div>
+      <div class="ch"><input type="range" class="gain" data-d="b" min="0" max="1.25" step="0.01" value="1"><span>B</span></div>
+    </div>
+    <h2>Crossfader</h2>
+    <input id="xf" type="range" min="0" max="1" step="0.001" value="0.5">
+    <h2>Master</h2>
+    <input id="mvol" type="range" min="0" max="1" step="0.01" value="0.9">
+  </section>
+  <section class="deck" data-d="b">
+    <div class="dbar"><b>B</b><span class="dname">loading…</span>
+      <button class="open" type="button">Open project…</button>
+      <button class="play" type="button">Play</button><button class="stop" type="button">Stop</button>
+      <span class="state"></span></div>
+  </section>
+</main>
+<input id="file" type="file" accept=".json,application/json" hidden>
+<script>
+(function(){
+'use strict';
+/* ---------- the shared audio graph ----------
+   One AudioContext for everything. Each deck (a Thunder Plus page in a frame, opened with ?deck=a / ?deck=b)
+   plays into its own input here: input → channel gain → crossfade gain → master → speakers. */
+const ctx = new (window.AudioContext || window.webkitAudioContext)({latencyHint:'interactive'});
+const master = ctx.createGain(); master.gain.value = 0.9; master.connect(ctx.destination);
+const D = {};
+for (const id of ['a', 'b']){
+  const input = ctx.createGain(), ch = ctx.createGain(), xf = ctx.createGain();
+  input.connect(ch); ch.connect(xf); xf.connect(master);
+  D[id] = {id, input, ch, xf, win:null, api:null, state:'', name:'', startAt:null, stopAt:null};
+}
+// Each AudioWorklet module is added to the shared context once (both decks use the same processors).
+const once = new Map();
+window.__thunderPerform = {
+  ctx,
+  input: id => D[id].input,
+  once(key, fn){ if (!once.has(key)) once.set(key, Promise.resolve().then(fn)); return once.get(key); }
+};
+
+/* ---------- the master clock ----------
+   Beats are counted from an anchor (time t0 at beat b0). A tempo change re-anchors at the current moment,
+   so the beat count never jumps. Launches wait for the next multiple of the chosen number of beats. */
+const clock = {bpm:120, t0:null, b0:0};
+const spb = () => 60 / clock.bpm;
+const beatAt = t => clock.t0 == null ? 0 : clock.b0 + (t - clock.t0) / spb();
+const timeOfBeat = b => clock.t0 + (b - clock.b0) * spb();
+function nextBoundary(lead = 0.12){
+  const now = ctx.currentTime + lead;
+  if (clock.t0 == null || !anyPlaying()){ clock.t0 = now; clock.b0 = 0; return now; }
+  const q = +$('quant').value;
+  return timeOfBeat(Math.ceil((beatAt(now) - 1e-9) / q) * q);
+}
+function setTempo(bpm){
+  bpm = Math.min(300, Math.max(40, +bpm || 120));
+  if (clock.t0 != null){ const now = ctx.currentTime; clock.b0 = beatAt(now); clock.t0 = now; }
+  clock.bpm = bpm;
+  for (const d of Object.values(D)) if (d.api) d.api.setBpm(bpm);
+}
+const anyPlaying = () => Object.values(D).some(d => d.api && d.api.info().playing);
+const $ = id => document.getElementById(id);
+
+/* ---------- decks ---------- */
+function deckEl(id){ return document.querySelector(`.deck[data-d="${id}"]`); }
+function loadDeck(id){
+  const d = D[id], f = document.createElement('iframe');
+  f.src = 'thunder-plus/index.html?deck=' + id; f.title = 'Deck ' + id.toUpperCase();
+  f.addEventListener('load', async () => {
+    d.win = f.contentWindow;
+    for (let i = 0; i < 200 && !d.win.__deck; i++) await new Promise(r => setTimeout(r, 25));
+    d.api = d.win.__deck || null;
+    if (!d.api){ setState(id, 'This frame isn’t a deck (is the thunder-plus folder the deck branch?)'); return; }
+    await d.api.ready();
+    d.api.setBpm(clock.bpm);
+    d.name = d.api.info().name; paint();
+  });
+  deckEl(id).append(f);
+}
+function play(id){
+  const d = D[id]; if (!d.api) return;
+  d.api.setBpm(clock.bpm);
+  const at = nextBoundary();
+  d.startAt = d.api.play(at, 0); d.stopAt = null; paint();
+}
+function stop(id){
+  const d = D[id]; if (!d.api || !d.api.info().playing) return;
+  const at = nextBoundary(0.08); d.stopAt = at; d.api.stop(at); paint();
+}
+let openFor = null;
+$('file').addEventListener('change', async e => {
+  const f = e.target.files[0], d = D[openFor]; e.target.value = ''; if (!f || !d || !d.api) return;
+  setState(d.id, 'loading…');
+  const ok = await d.api.open(await f.text());
+  if (ok){ d.api.setBpm(clock.bpm); d.name = d.api.info().name; } paint();
+});
+for (const id of ['a', 'b']){
+  const el = deckEl(id);
+  el.querySelector('.open').addEventListener('click', () => { openFor = id; $('file').click(); });
+  el.querySelector('.play').addEventListener('click', () => play(id));
+  el.querySelector('.stop').addEventListener('click', () => stop(id));
+}
+
+/* ---------- mixer ---------- */
+function xfade(){
+  const x = +$('xf').value;   // equal-power
+  D.a.xf.gain.setTargetAtTime(Math.cos(x * Math.PI / 2), ctx.currentTime, 0.01);
+  D.b.xf.gain.setTargetAtTime(Math.sin(x * Math.PI / 2), ctx.currentTime, 0.01);
+}
+$('xf').addEventListener('input', xfade); xfade();
+document.querySelectorAll('.gain').forEach(g => g.addEventListener('input', () => D[g.dataset.d].ch.gain.setTargetAtTime(+g.value, ctx.currentTime, 0.01)));
+$('mvol').addEventListener('input', e => master.gain.setTargetAtTime(+e.target.value, ctx.currentTime, 0.01));
+$('bpm').addEventListener('change', e => setTempo(e.target.value));
+
+/* ---------- display ---------- */
+function setState(id, txt, cls = ''){ const s = deckEl(id).querySelector('.state'); s.textContent = txt; s.className = 'state ' + cls; }
+function paint(){
+  const now = ctx.currentTime;
+  for (const d of Object.values(D)){
+    deckEl(d.id).querySelector('.dname').textContent = d.api ? d.name : 'loading…';
+    if (!d.api) continue;
+    const on = d.api.info().playing;
+    if (d.stopAt != null && now < d.stopAt) setState(d.id, 'stopping on the beat', 'armed');
+    else if (on && d.startAt != null && now < d.startAt) setState(d.id, 'starts on the beat', 'armed');
+    else if (on) setState(d.id, 'playing', 'playing');
+    else setState(d.id, 'stopped');
+  }
+  const b = Math.floor(beatAt(now));
+  document.querySelectorAll('#beat i').forEach((i, k) => i.classList.toggle('lit', anyPlaying() && ((b % 4) + 4) % 4 === k));
+}
+(function loop(){ paint(); requestAnimationFrame(loop); })();
+
+$('go').addEventListener('click', async () => {
+  await ctx.resume(); $('start').remove();
+  loadDeck('a'); loadDeck('b');
+});
+window.__perform = {D, clock, play, stop, setTempo, nextBoundary};   // for tests
+})();
+</script>
+</body>
+</html>
