@@ -5,106 +5,187 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>...Thunder Perform</title>
 <style>
-:root{--bg:#0e0f12;--panel:#16181d;--line:#2a2e37;--ink:#e8e9ec;--dim:#8a8f9c;--acc:#4fd18a;--warn:#e8b93c;color-scheme:dark}
+@font-face{font-family:Jost; src:url(thunder-plus/fonts/Jost-400.woff) format("woff"); font-weight:400; font-display:swap}
+@font-face{font-family:Jost; src:url(thunder-plus/fonts/Jost-500.woff) format("woff"); font-weight:500; font-display:swap}
+@font-face{font-family:Jost; src:url(thunder-plus/fonts/Jost-600.woff) format("woff"); font-weight:600; font-display:swap}
+@font-face{font-family:"JetBrains Mono"; src:url(thunder-plus/fonts/JetBrainsMono-400.woff2) format("woff2"); font-weight:400 500; font-display:swap}
+/* Seeds "Minimal" look, as in ...Thunder Plus: full-width bands split by 1px ink lines, grey control bands,
+   white cards, a black screen strip. Side A is blue, side B is orange. */
+:root{
+  --fs-1:9px; --fs-2:10.5px; --fs-3:12px; --fs-4:13.5px; --fs-5:16px;
+  --bench:#ffffff; --panel2:#f3f3f3; --side:#efefef; --ink:#111111; --muted:#555555; --track:#e6e6e6;
+  --screen:#000000; --screen-ink:#ffffff; --screen-line:#3a3a3a;
+  --a:#2f6fc7; --b:#e07a2e; --live:#139a9a; --warn:#b8860b; --rec:#d33b2c;
+  --font:Futura, Jost, system-ui, sans-serif; --mono:"JetBrains Mono", ui-monospace, monospace;
+  color-scheme:light;
+}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.4 system-ui,sans-serif;height:100vh;display:flex;flex-direction:column}
-header{display:flex;gap:16px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap}
-header h1{font-size:15px;font-weight:600;margin:0 8px 0 0;letter-spacing:.02em}
-label{color:var(--dim);display:flex;gap:6px;align-items:center}
-input[type=number]{width:70px}
-input,select,button{background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:5px 9px;font:inherit}
-button{cursor:pointer}
-button:hover{border-color:var(--dim)}
-button.on{border-color:var(--acc);color:var(--acc)}
-#beat{display:flex;gap:4px}
-#beat i{width:10px;height:10px;border-radius:50%;background:var(--line)}
-#beat i.lit{background:var(--acc)}
-main{flex:1;display:grid;grid-template-columns:1fr 220px 1fr;min-height:0}
-.deck{display:flex;flex-direction:column;min-width:0;border-right:1px solid var(--line)}
-.deck:last-child{border-right:0;border-left:1px solid var(--line)}
-.dbar{display:flex;gap:8px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--line);flex-wrap:wrap}
-.dbar b{font-weight:600}
-.dname{color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:80px}
-.state{font-size:12px;color:var(--dim)}
-.state.armed{color:var(--warn)}
-.state.playing{color:var(--acc)}
-iframe{flex:1;border:0;width:100%;background:#000}
-.mixer{display:flex;flex-direction:column;gap:14px;padding:14px;align-items:stretch}
-.mixer h2{font-size:12px;color:var(--dim);font-weight:500;margin:0;text-transform:uppercase;letter-spacing:.08em}
-.chs{display:flex;justify-content:space-around}
-.ch{display:flex;flex-direction:column;align-items:center;gap:6px}
-.ch input[type=range]{writing-mode:vertical-lr;direction:rtl;height:160px}
-input[type=range]{accent-color:var(--acc)}
+html,body{height:100%}
+body{margin:0; background:var(--bench); color:var(--ink); font:500 var(--fs-4)/1.35 var(--font); display:flex; flex-direction:column;
+  user-select:none; -webkit-user-select:none; overflow:hidden}
+button,select,input{font:inherit; color:inherit}
+button{background:var(--panel2); border:1px solid var(--ink); border-radius:0; padding:5px 10px; cursor:pointer; text-transform:uppercase;
+  letter-spacing:.06em; font-size:var(--fs-3); font-weight:600}
+button:hover{background:var(--track)}
+button:disabled{opacity:.4; cursor:default}
+select{background:#fff; border:1px solid var(--ink); border-radius:0; padding:4px 6px; font-size:var(--fs-3)}
+input[type=number]{width:72px; background:#fff; border:1px solid var(--ink); border-radius:0; padding:4px 6px; font:500 var(--fs-4) var(--mono)}
+input[type=range]{accent-color:var(--ink)}
+.lbl{font-size:var(--fs-2); text-transform:uppercase; letter-spacing:.1em; color:var(--muted); font-weight:600}
+
+/* top band */
+header{display:flex; align-items:center; gap:18px; padding:8px 14px; background:var(--side); border-bottom:1px solid var(--ink); flex-wrap:wrap}
+.brand{font-size:var(--fs-5); font-weight:600; letter-spacing:.02em; margin-right:6px}
+.brand span{color:var(--muted); font-weight:400}
+.hg{display:flex; align-items:center; gap:8px}
+/* the screen strip: bar.beat counter and beat lights */
+.screen{background:var(--screen); color:var(--screen-ink); font:500 var(--fs-5) var(--mono); padding:4px 12px; display:flex; gap:12px; align-items:center; border:1px solid var(--ink)}
+.screen .dots{display:flex; gap:5px}
+.screen .dots i{width:9px; height:9px; border:1px solid var(--screen-line); background:transparent}
+.screen .dots i.lit{background:var(--screen-ink); border-color:var(--screen-ink)}
+.screen .dots i.lit.one{background:var(--rec); border-color:var(--rec)}
+
+main{flex:1; display:grid; grid-template-columns:1fr 230px 1fr; min-height:0}
+
+/* sides */
+.side{display:flex; flex-direction:column; min-width:0; min-height:0; --sc:var(--a)}
+.side[data-s="b"]{--sc:var(--b)}
+.shead{display:flex; align-items:center; gap:10px; padding:8px 12px; background:var(--side); border-bottom:1px solid var(--ink)}
+.shead .sl{width:28px; height:28px; display:grid; place-items:center; background:var(--sc); color:#fff; font-weight:600; font-size:var(--fs-5)}
+.shead .now{flex:1; min-width:0}
+.shead .now b{display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:600}
+.shead .now small{font:var(--fs-3) var(--mono); color:var(--muted)}
+.clips{flex:1; overflow:auto; padding:10px; display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); align-content:start; gap:8px}
+.clips.drop{outline:2px dashed var(--sc); outline-offset:-6px}
+.empty{grid-column:1/-1; color:var(--muted); padding:30px 10px; text-align:center; font-size:var(--fs-3); border:1px dashed var(--muted)}
+
+/* a clip: a white card with a thick side-coloured left edge */
+.clip{position:relative; background:#fff; border:1px solid var(--ink); border-left:6px solid var(--sc); padding:8px 30px 8px 10px; cursor:pointer; min-height:62px}
+.clip:hover{background:var(--panel2)}
+.clip .nm{font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.clip .meta{font:var(--fs-3) var(--mono); color:var(--muted); margin-top:3px; display:flex; gap:8px}
+.clip .tr{font:600 var(--fs-1) var(--font); letter-spacing:.1em; text-transform:uppercase; border:1px solid currentColor; padding:0 4px; align-self:center}
+.clip .opt{position:absolute; top:4px; right:4px; width:22px; height:22px; padding:0; display:grid; place-items:center; background:transparent; border:0; font-size:15px}
+.clip .opt:hover{background:var(--track)}
+.clip.playing{background:var(--ink); color:#fff}
+.clip.playing .meta{color:#bbb}
+.clip.playing .opt{color:#fff}
+.clip.playing .opt:hover{background:#333}
+.clip.fading{background:repeating-linear-gradient(135deg,#fff 0 6px,var(--track) 6px 12px)}
+.clip.armed{animation:blink .5s steps(2) infinite}
+.clip.loading{opacity:.6}
+.clip .st{position:absolute; right:8px; bottom:6px; font:600 var(--fs-1) var(--font); letter-spacing:.1em; text-transform:uppercase}
+@keyframes blink{50%{background:var(--sc); color:#fff}}
+
+/* mixer */
+.mixer{border-left:1px solid var(--ink); border-right:1px solid var(--ink); background:var(--side); display:flex; flex-direction:column}
+.mixer section{padding:10px 12px; border-bottom:1px solid var(--ink)}
+.chs{display:flex; justify-content:space-around; padding-top:6px}
+.ch{display:grid; grid-template-columns:auto auto; align-items:end; justify-items:center; gap:8px 6px}
+.ch input[type=range]{writing-mode:vertical-lr; direction:rtl; height:160px; width:22px; margin:0}
+.ch .cn{grid-column:1 / -1; width:22px; height:22px; display:grid; place-items:center; color:#fff; font-weight:600}
+.meter{width:8px; height:160px; background:var(--screen); position:relative; border:1px solid var(--ink)}
+.meter i{position:absolute; left:0; right:0; bottom:0; background:var(--live)}
 #xf{width:100%}
-.note{font-size:12px;color:var(--dim)}
-#start{position:fixed;inset:0;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;z-index:5}
-#start button{font-size:16px;padding:12px 22px}
+.xfl{display:flex; justify-content:space-between; font-weight:600}
+
+/* clip settings and the deck editor */
+.pop{position:fixed; z-index:20; background:#fff; border:1px solid var(--ink); box-shadow:4px 4px 0 var(--ink); padding:12px; width:260px; display:flex; flex-direction:column; gap:10px}
+.pop h3{margin:0; font-size:var(--fs-4); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.seg{display:flex}
+.seg button{flex:1; border-right-width:0}
+.seg button:last-child{border-right-width:1px}
+.seg button.on{background:var(--ink); color:#fff}
+.row{display:flex; justify-content:space-between; gap:8px}
+iframe.eng{display:none; border:0}
+iframe.eng.shown{display:block; position:fixed; left:0; right:0; bottom:0; top:46px; width:100%; height:calc(100% - 46px); z-index:30; background:#fff}
+#edbar{display:none; position:fixed; left:0; right:0; top:0; height:46px; z-index:31; background:var(--ink); color:#fff; align-items:center; gap:12px; padding:0 14px}
+#edbar.on{display:flex}
+#edbar button{background:#fff; color:var(--ink)}
+#edbar .sp{flex:1}
+#start{position:fixed; inset:0; background:rgba(255,255,255,.92); display:flex; flex-direction:column; gap:12px; align-items:center; justify-content:center; z-index:50}
+#start button{font-size:var(--fs-5); padding:12px 26px}
+#toast{position:fixed; left:50%; bottom:18px; transform:translateX(-50%); background:var(--ink); color:#fff; padding:8px 14px; font-size:var(--fs-3); z-index:60; display:none; max-width:80vw}
 </style>
 </head>
 <body>
-<div id="start"><button id="go" type="button">Start audio</button></div>
+<div id="start"><div class="brand">...Thunder <span>Perform</span></div><button id="go" type="button">Start audio</button></div>
 <header>
-  <h1>...Thunder Perform</h1>
-  <label>Tempo <input id="bpm" type="number" min="40" max="300" step="0.1" value="120"></label>
-  <label>Launch on <select id="quant"><option value="1">next beat</option><option value="4" selected>next bar</option><option value="8">2 bars</option><option value="16">4 bars</option></select></label>
-  <div id="beat"><i></i><i></i><i></i><i></i></div>
-  <span class="note">Sync test: both decks run on one clock. Launches land on the next beat/bar.</span>
+  <div class="brand">...Thunder <span>Perform</span></div>
+  <label class="hg"><span class="lbl">Tempo</span><input id="bpm" type="number" min="40" max="300" step="0.1" value="120"></label>
+  <label class="hg"><span class="lbl">Launch</span><select id="quant"><option value="1">next beat</option><option value="4" selected>next bar</option><option value="8">next 2 bars</option><option value="16">next 4 bars</option></select></label>
+  <div class="screen"><span id="pos">1.1</span><div class="dots"><i></i><i></i><i></i><i></i></div></div>
 </header>
 <main>
-  <section class="deck" data-d="a">
-    <div class="dbar"><b>A</b><span class="dname">loading…</span>
-      <button class="open" type="button">Open project…</button>
-      <button class="play" type="button">Play</button><button class="stop" type="button">Stop</button>
-      <span class="state"></span></div>
+  <section class="side" data-s="a">
+    <div class="shead"><div class="sl">A</div><div class="now"><b>Nothing playing</b><small>&nbsp;</small></div>
+      <button class="add" type="button">+ Clips</button><button class="edit" type="button" disabled>Edit</button><button class="stop" type="button">Stop</button></div>
+    <div class="clips"></div>
   </section>
   <section class="mixer">
-    <h2>Mixer</h2>
-    <div class="chs">
-      <div class="ch"><input type="range" class="gain" data-d="a" min="0" max="1.25" step="0.01" value="1"><span>A</span></div>
-      <div class="ch"><input type="range" class="gain" data-d="b" min="0" max="1.25" step="0.01" value="1"><span>B</span></div>
-    </div>
-    <h2>Crossfader</h2>
-    <input id="xf" type="range" min="0" max="1" step="0.001" value="0.5">
-    <h2>Master</h2>
-    <input id="mvol" type="range" min="0" max="1" step="0.01" value="0.9">
+    <section><div class="lbl">Channels</div>
+      <div class="chs">
+        <div class="ch"><div class="meter"><i data-m="a"></i></div><input type="range" class="gain" data-s="a" min="0" max="1.25" step="0.01" value="1"><div class="cn" style="background:var(--a)">A</div></div>
+        <div class="ch"><div class="meter"><i data-m="b"></i></div><input type="range" class="gain" data-s="b" min="0" max="1.25" step="0.01" value="1"><div class="cn" style="background:var(--b)">B</div></div>
+      </div></section>
+    <section><div class="lbl">Crossfader</div><input id="xf" type="range" min="0" max="1" step="0.001" value="0.5"><div class="xfl"><span style="color:var(--a)">A</span><span style="color:var(--b)">B</span></div></section>
+    <section><div class="lbl">Master</div><input id="mvol" type="range" min="0" max="1" step="0.01" value="0.9" style="width:100%"></section>
+    <section style="border-bottom:0"><div class="lbl" style="margin-bottom:6px">How it works</div>
+      <div style="font-size:var(--fs-3); color:var(--muted)">Add ...Thunder project files as clips. Click a clip to launch it on the next beat or bar. Its transition (⋯) says how it takes over from the clip playing on its side: a hard cut, or a crossfade over a number of bars.</div></section>
   </section>
-  <section class="deck" data-d="b">
-    <div class="dbar"><b>B</b><span class="dname">loading…</span>
-      <button class="open" type="button">Open project…</button>
-      <button class="play" type="button">Play</button><button class="stop" type="button">Stop</button>
-      <span class="state"></span></div>
+  <section class="side" data-s="b">
+    <div class="shead"><div class="sl">B</div><div class="now"><b>Nothing playing</b><small>&nbsp;</small></div>
+      <button class="add" type="button">+ Clips</button><button class="edit" type="button" disabled>Edit</button><button class="stop" type="button">Stop</button></div>
+    <div class="clips"></div>
   </section>
 </main>
-<input id="file" type="file" accept=".json,application/json" hidden>
+<div id="edbar"><b id="edName"></b><span class="sp"></span><span style="font-size:var(--fs-3);opacity:.7">Edits play live. Keep them to save into the clip.</span><button id="edKeep" type="button">Keep changes in clip</button><button id="edClose" type="button">Close</button></div>
+<input id="file" type="file" accept=".json,application/json" multiple hidden>
+<div id="toast"></div>
 <script>
 (function(){
 'use strict';
-/* ---------- the shared audio graph ----------
-   One AudioContext for everything. Each deck (a Thunder Plus page in a frame, opened with ?deck=a / ?deck=b)
-   plays into its own input here: input → channel gain → crossfade gain → master → speakers. */
+const $ = id => document.getElementById(id);
+const sideEl = s => document.querySelector(`.side[data-s="${s}"]`);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+let toastT = 0;
+function toast(t, ms = 3500){ const e = $('toast'); e.textContent = t; e.style.display = 'block'; clearTimeout(toastT); toastT = setTimeout(() => e.style.display = 'none', ms); }
+
+/* ---------- audio graph ----------
+   One AudioContext. Each side has two engines (a ...Thunder Plus page in a hidden frame, ?deck=a1 / a2 / b1 / b2),
+   so a side can crossfade from the clip it is playing into the next one:
+   engine input → engine gain (the transition) → side channel fader → crossfader → master. */
 const ctx = new (window.AudioContext || window.webkitAudioContext)({latencyHint:'interactive'});
 const master = ctx.createGain(); master.gain.value = 0.9; master.connect(ctx.destination);
-const D = {};
-for (const id of ['a', 'b']){
-  const input = ctx.createGain(), ch = ctx.createGain(), xf = ctx.createGain();
-  input.connect(ch); ch.connect(xf); xf.connect(master);
-  D[id] = {id, input, ch, xf, win:null, api:null, state:'', name:'', startAt:null, stopAt:null};
+const SIDES = {};
+const ENG = {};
+for (const s of ['a', 'b']){
+  const ch = ctx.createGain(), xf = ctx.createGain(), an = ctx.createAnalyser(); an.fftSize = 1024;
+  ch.connect(xf); xf.connect(master); xf.connect(an);
+  SIDES[s] = {id:s, ch, xf, an, buf:new Float32Array(1024), engines:[], cur:-1, tok:0, pend:null, lvl:0};
+  for (const n of [1, 2]){
+    const id = s + n, input = ctx.createGain(), g = ctx.createGain(); g.gain.value = 0;
+    input.connect(g); g.connect(ch);
+    const e = {id, side:s, n:n - 1, input, g, frame:null, win:null, api:null, clipId:null, startAt:null, endAt:null, busyTill:0};
+    ENG[id] = e; SIDES[s].engines.push(e);
+  }
 }
-// Each AudioWorklet module is added to the shared context once (both decks use the same processors).
 const once = new Map();
 window.__thunderPerform = {
   ctx,
-  input: id => D[id].input,
+  input: id => ENG[id].input,
   once(key, fn){ if (!once.has(key)) once.set(key, Promise.resolve().then(fn)); return once.get(key); }
 };
 
-/* ---------- the master clock ----------
-   Beats are counted from an anchor (time t0 at beat b0). A tempo change re-anchors at the current moment,
-   so the beat count never jumps. Launches wait for the next multiple of the chosen number of beats. */
+/* ---------- master clock ----------
+   Beats count from an anchor (time t0 is beat b0). A tempo change re-anchors at the current moment, so the
+   count never jumps. Launches wait for the next multiple of the Launch setting. */
 const clock = {bpm:120, t0:null, b0:0};
 const spb = () => 60 / clock.bpm;
 const beatAt = t => clock.t0 == null ? 0 : clock.b0 + (t - clock.t0) / spb();
 const timeOfBeat = b => clock.t0 + (b - clock.b0) * spb();
+const engPlaying = e => !!(e.api && e.api.info().playing && !(e.endAt != null && ctx.currentTime >= e.endAt));
+const anyPlaying = () => Object.values(ENG).some(engPlaying);
 function nextBoundary(lead = 0.12){
   const now = ctx.currentTime + lead;
   if (clock.t0 == null || !anyPlaying()){ clock.t0 = now; clock.b0 = 0; return now; }
@@ -114,86 +195,264 @@ function nextBoundary(lead = 0.12){
 function setTempo(bpm){
   bpm = Math.min(300, Math.max(40, +bpm || 120));
   if (clock.t0 != null){ const now = ctx.currentTime; clock.b0 = beatAt(now); clock.t0 = now; }
-  clock.bpm = bpm;
-  for (const d of Object.values(D)) if (d.api) d.api.setBpm(bpm);
+  clock.bpm = bpm; $('bpm').value = +bpm.toFixed(2);
+  for (const e of Object.values(ENG)) if (e.api) e.api.setBpm(bpm);
+  saveSet();
 }
-const anyPlaying = () => Object.values(D).some(d => d.api && d.api.info().playing);
-const $ = id => document.getElementById(id);
 
-/* ---------- decks ---------- */
-function deckEl(id){ return document.querySelector(`.deck[data-d="${id}"]`); }
-function loadDeck(id){
-  const d = D[id], f = document.createElement('iframe');
-  f.src = 'thunder-plus/index.html?deck=' + id; f.title = 'Deck ' + id.toUpperCase();
+/* ---------- clips (kept in this app's IndexedDB) ---------- */
+const clips = new Map();   // id → {id, side, idx, name, bpm, trans:'cut'|'xfade', len (bars), text}
+let dbP = null;
+function db(){ return dbP || (dbP = new Promise((res, rej) => { const r = indexedDB.open('thunderperform', 1);
+  r.onupgradeneeded = () => r.result.createObjectStore('clips', {keyPath:'id'}); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); })); }
+async function dbAll(){ const d = await db(); return new Promise(res => { const q = d.transaction('clips').objectStore('clips').getAll(); q.onsuccess = () => res(q.result || []); q.onerror = () => res([]); }); }
+async function dbPut(c){ const d = await db(); return new Promise(res => { const t = d.transaction('clips', 'readwrite'); t.objectStore('clips').put(c); t.oncomplete = res; t.onerror = t.onabort = () => { toast('Couldn’t save the clip in this browser.'); res(); }; }); }
+async function dbDel(id){ const d = await db(); return new Promise(res => { const t = d.transaction('clips', 'readwrite'); t.objectStore('clips').delete(id); t.oncomplete = t.onerror = res; }); }
+const sideClips = s => [...clips.values()].filter(c => c.side === s).sort((x, y) => x.idx - y.idx);
+function parseProject(text){
+  const j = JSON.parse(text);
+  if (!j || (!j.song && j.app !== 'thunder-song')) throw new Error('not a ...Thunder project');
+  const song = j.app === 'thunder-song' ? j : j.song;
+  return {name:song.name || 'Song', bpm:+song.bpm || 120};
+}
+async function addFiles(s, files){
+  let n = 0;
+  for (const f of files){
+    try {
+      const text = await f.text(), p = parseProject(text), list = sideClips(s);
+      const c = {id:'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7), side:s, idx:list.length ? list[list.length - 1].idx + 1 : 0,
+        name:p.name !== 'Song' ? p.name : f.name.replace(/( project)?\.json$/i, ''), bpm:p.bpm, trans:'cut', len:4, text};
+      clips.set(c.id, c); await dbPut(c); n++;
+    } catch(e){ toast(`${f.name} isn’t a ...Thunder project file.`); }
+  }
+  if (n) drawClips(s);
+}
+
+/* ---------- engines ---------- */
+function startEngine(e){
+  const f = document.createElement('iframe');
+  f.className = 'eng'; f.title = 'Engine ' + e.id; f.src = 'thunder-plus/index.html?deck=' + e.id;
   f.addEventListener('load', async () => {
-    d.win = f.contentWindow;
-    for (let i = 0; i < 200 && !d.win.__deck; i++) await new Promise(r => setTimeout(r, 25));
-    d.api = d.win.__deck || null;
-    if (!d.api){ setState(id, 'This frame isn’t a deck (is the thunder-plus folder the deck branch?)'); return; }
-    await d.api.ready();
-    d.api.setBpm(clock.bpm);
-    d.name = d.api.info().name; paint();
+    e.win = f.contentWindow;
+    for (let i = 0; i < 400 && !e.win.__deck; i++) await sleep(25);
+    e.api = e.win.__deck || null;
+    if (!e.api) toast('An engine didn’t start: is thunder-plus the deck branch?', 8000);
+    paint();
   });
-  deckEl(id).append(f);
+  e.frame = f; document.body.append(f);
 }
-function play(id){
-  const d = D[id]; if (!d.api) return;
-  d.api.setBpm(clock.bpm);
-  const at = nextBoundary();
-  d.startAt = d.api.play(at, 0); d.stopAt = null; paint();
+// Fades: equal-power, as short linear segments so a fade can start from wherever a gain is held.
+function fade(param, from, to, t, dur){
+  const N = 16;
+  try { param.cancelAndHoldAtTime(t); } catch(_){ param.cancelScheduledValues(t); }
+  param.setValueAtTime(from, t);
+  for (let k = 1; k <= N; k++){
+    const x = k / N, v = to > from ? Math.sin(x * Math.PI / 2) * to : Math.cos(x * Math.PI / 2) * from;
+    param.linearRampToValueAtTime(v, t + dur * x);
+  }
 }
-function stop(id){
-  const d = D[id]; if (!d.api || !d.api.info().playing) return;
-  const at = nextBoundary(0.08); d.stopAt = at; d.api.stop(at); paint();
+const gainAt = e => e.g.gain.value;
+
+/* Launching a clip on side s:
+   1. load it into the side's idle engine (the one not playing), waiting first if that engine is still fading out;
+   2. start it on the next beat/bar of the master clock;
+   3. hand over from the side's current clip with the new clip's transition: a hard cut at that moment, or an
+      equal-power crossfade over its length in bars, after which the old clip stops.
+   A newer launch on the same side, before step 2, replaces this one. */
+async function launch(cid){
+  const c = clips.get(cid); if (!c) return;
+  const S = SIDES[c.side], tok = ++S.tok;
+  const cur = S.cur >= 0 ? S.engines[S.cur] : null, curOn = cur && engPlaying(cur);
+  const e = curOn ? S.engines[1 - S.cur] : (cur || S.engines[0]);
+  if (!e.api){ toast('The engines are still starting. Try again in a moment.'); return; }
+  S.pend = {cid, phase:'loading'}; paint();
+  while (e.busyTill > ctx.currentTime){ S.pend.phase = 'waiting'; await sleep(50); if (tok !== S.tok) return; }
+  if (e.clipId !== cid || c.dirty){
+    e.clipId = null;
+    const ok = await e.api.open(c.text);
+    if (!ok){ if (tok === S.tok) S.pend = null; toast(`Couldn’t open ${c.name}.`); paint(); return; }
+    e.clipId = cid; c.dirty = false;
+  } else await e.api.ready();
+  if (tok !== S.tok) return;
+  if (!anyPlaying()) setTempo(c.bpm);          // the first clip of a set brings its own tempo
+  e.api.setBpm(clock.bpm);
+  const T = nextBoundary();
+  const old = S.cur >= 0 ? S.engines[S.cur] : null, oldOn = old && old !== e && engPlaying(old);
+  e.startAt = e.api.play(T, 0); e.endAt = null;
+  if (oldOn && c.trans === 'xfade'){
+    const L = Math.max(1, c.len) * 4 * spb();
+    fade(e.g.gain, 0, 1, T, L);
+    fade(old.g.gain, Math.max(gainAt(old), 0.0001), 0, T, L);
+    old.api.stop(T + L); old.endAt = T + L; old.busyTill = T + L + 0.1;
+  } else {
+    try { e.g.gain.cancelAndHoldAtTime(T); } catch(_){ e.g.gain.cancelScheduledValues(T); }
+    e.g.gain.setValueAtTime(1, T);
+    if (oldOn){ old.api.stop(T); old.endAt = T; old.busyTill = T + 0.1; try { old.g.gain.cancelAndHoldAtTime(T + 0.02); } catch(_){} old.g.gain.setValueAtTime(0, T + 0.02); }
+  }
+  S.cur = e.n; S.pend = {cid, phase:'armed', at:T};
+  setTimeout(() => { if (S.pend && S.pend.cid === cid && S.pend.at === T) S.pend = null; }, Math.max(0, (T - ctx.currentTime) * 1000 + 30));
+  paint();
 }
-let openFor = null;
-$('file').addEventListener('change', async e => {
-  const f = e.target.files[0], d = D[openFor]; e.target.value = ''; if (!f || !d || !d.api) return;
-  setState(d.id, 'loading…');
-  const ok = await d.api.open(await f.text());
-  if (ok){ d.api.setBpm(clock.bpm); d.name = d.api.info().name; } paint();
+function stopSide(s){
+  const S = SIDES[s]; S.tok++; S.pend = null;
+  const T = nextBoundary(0.08);
+  for (const e of S.engines) if (engPlaying(e)){ e.api.stop(T); e.endAt = T; e.busyTill = T + 0.1; }
+  paint();
+}
+
+/* ---------- clip settings ---------- */
+let popEl = null;
+function closePop(){ if (popEl){ popEl.remove(); popEl = null; } }
+function openPop(cid, anchor){
+  closePop();
+  const c = clips.get(cid); if (!c) return;
+  const p = document.createElement('div'); p.className = 'pop';
+  const lens = [1, 2, 4, 8, 16];
+  p.innerHTML = `<h3></h3>
+    <div><div class="lbl" style="margin-bottom:4px">Transition</div><div class="seg" data-k="trans"><button data-v="cut">Hard cut</button><button data-v="xfade">Crossfade</button></div></div>
+    <div class="lenrow"><div class="lbl" style="margin-bottom:4px">Length (bars)</div><div class="seg" data-k="len">${lens.map(n => `<button data-v="${n}">${n}</button>`).join('')}</div></div>
+    <div class="row"><button data-act="left">◀ Move</button><button data-act="right">Move ▶</button></div>
+    <div class="row"><button data-act="other">To side ${c.side === 'a' ? 'B' : 'A'}</button><button data-act="del" style="color:var(--rec)">Remove</button></div>`;
+  p.querySelector('h3').textContent = c.name;
+  const sync = () => {
+    p.querySelectorAll('.seg[data-k="trans"] button').forEach(b => b.classList.toggle('on', b.dataset.v === c.trans));
+    p.querySelectorAll('.seg[data-k="len"] button').forEach(b => b.classList.toggle('on', +b.dataset.v === c.len));
+    p.querySelector('.lenrow').style.opacity = c.trans === 'xfade' ? 1 : 0.35;
+  };
+  p.addEventListener('click', async ev => {
+    const b = ev.target.closest('button'); if (!b) return;
+    const k = b.parentElement.dataset.k;
+    if (k === 'trans') c.trans = b.dataset.v;
+    else if (k === 'len'){ c.len = +b.dataset.v; if (c.trans === 'cut') c.trans = 'xfade'; }
+    else if (b.dataset.act === 'del'){ if (isOn(cid)) return toast('Stop this clip before removing it.'); clips.delete(cid); await dbDel(cid); closePop(); drawClips(c.side); return; }
+    else if (b.dataset.act === 'other'){ if (isOn(cid)) return toast('Stop this clip before moving it to the other side.');
+      const from = c.side; c.side = from === 'a' ? 'b' : 'a'; const l = sideClips(c.side).filter(x => x !== c); c.idx = l.length ? l[l.length - 1].idx + 1 : 0;
+      await dbPut(c); closePop(); drawClips(from); drawClips(c.side); return; }
+    else if (b.dataset.act === 'left' || b.dataset.act === 'right'){
+      const l = sideClips(c.side), i = l.indexOf(c), j = i + (b.dataset.act === 'left' ? -1 : 1);
+      if (j < 0 || j >= l.length) return; const o = l[j]; [c.idx, o.idx] = [o.idx, c.idx]; await dbPut(o);
+    }
+    await dbPut(c); sync(); drawClips(c.side);
+  });
+  sync(); document.body.append(p); popEl = p;
+  const r = anchor.getBoundingClientRect();
+  p.style.left = Math.min(innerWidth - 272, Math.max(8, r.right - 260)) + 'px';
+  p.style.top = Math.min(innerHeight - p.offsetHeight - 8, r.bottom + 4) + 'px';
+}
+document.addEventListener('pointerdown', ev => { if (popEl && !popEl.contains(ev.target) && !ev.target.closest('.opt')) closePop(); });
+
+/* ---------- editing a side's playing clip ---------- */
+let editing = null;
+function openEdit(s){
+  const S = SIDES[s], e = S.cur >= 0 ? S.engines[S.cur] : null;
+  if (!e || !e.api || !e.clipId) return;
+  closeEdit(); editing = e; e.frame.classList.add('shown');
+  const c = clips.get(e.clipId); $('edName').textContent = `Side ${s.toUpperCase()} · ${c ? c.name : ''}`; $('edbar').classList.add('on');
+}
+function closeEdit(){ if (editing){ editing.frame.classList.remove('shown'); editing = null; } $('edbar').classList.remove('on'); }
+$('edClose').addEventListener('click', closeEdit);
+$('edKeep').addEventListener('click', async () => {
+  if (!editing) return; const c = clips.get(editing.clipId); if (!c) return;
+  try { const text = editing.api.save(), p = parseProject(text); c.text = text; c.bpm = p.bpm; await dbPut(c);
+    for (const e of Object.values(ENG)) if (e !== editing && e.clipId === c.id) c.dirty = true;   // the other engine reloads it next time
+    toast(`Kept: ${c.name} now plays with these changes.`); drawClips(c.side);
+  } catch(err){ toast('Couldn’t keep the changes: ' + (err.message || err)); }
 });
-for (const id of ['a', 'b']){
-  const el = deckEl(id);
-  el.querySelector('.open').addEventListener('click', () => { openFor = id; $('file').click(); });
-  el.querySelector('.play').addEventListener('click', () => play(id));
-  el.querySelector('.stop').addEventListener('click', () => stop(id));
-}
 
-/* ---------- mixer ---------- */
-function xfade(){
-  const x = +$('xf').value;   // equal-power
-  D.a.xf.gain.setTargetAtTime(Math.cos(x * Math.PI / 2), ctx.currentTime, 0.01);
-  D.b.xf.gain.setTargetAtTime(Math.sin(x * Math.PI / 2), ctx.currentTime, 0.01);
+/* ---------- drawing ---------- */
+const bbS = t => { const b = Math.max(0, Math.floor(beatAt(t) + 1e-6)); return `${Math.floor(b / 4) + 1}.${(b % 4) + 1}`; };
+function isOn(cid){ return Object.values(ENG).some(e => e.clipId === cid && engPlaying(e)); }
+function clipState(c){
+  const S = SIDES[c.side], now = ctx.currentTime;
+  if (S.pend && S.pend.cid === c.id) return S.pend.phase === 'armed' && now >= S.pend.at ? 'playing' : S.pend.phase === 'armed' ? 'armed' : 'loading';
+  for (const e of S.engines) if (e.clipId === c.id && engPlaying(e)){
+    if (e.startAt != null && now < e.startAt) return 'armed';
+    if (e.n === S.cur && e.endAt == null) return 'playing';
+    const nx = S.cur >= 0 ? S.engines[S.cur] : null;   // still playing until the clip taking over has started
+    return nx && nx !== e && nx.startAt != null && now >= nx.startAt ? 'fading' : 'playing';
+  }
+  return '';
 }
-$('xf').addEventListener('input', xfade); xfade();
-document.querySelectorAll('.gain').forEach(g => g.addEventListener('input', () => D[g.dataset.d].ch.gain.setTargetAtTime(+g.value, ctx.currentTime, 0.01)));
-$('mvol').addEventListener('input', e => master.gain.setTargetAtTime(+e.target.value, ctx.currentTime, 0.01));
-$('bpm').addEventListener('change', e => setTempo(e.target.value));
-
-/* ---------- display ---------- */
-function setState(id, txt, cls = ''){ const s = deckEl(id).querySelector('.state'); s.textContent = txt; s.className = 'state ' + cls; }
+const ST_TEXT = {armed:'next', loading:'loading', fading:'out', playing:''};
+function drawClips(s){
+  const box = sideEl(s).querySelector('.clips'); box.textContent = '';
+  const list = sideClips(s);
+  if (!list.length){ const d = document.createElement('div'); d.className = 'empty'; d.textContent = 'Drop ...Thunder project files here, or use + Clips.'; box.append(d); }
+  for (const c of list){
+    const d = document.createElement('div'); d.className = 'clip'; d.dataset.id = c.id;
+    d.innerHTML = `<div class="nm"></div><div class="meta"><span>${(+c.bpm).toFixed(c.bpm % 1 ? 1 : 0)} bpm</span><span class="tr">${c.trans === 'xfade' ? 'XF ' + c.len : 'Cut'}</span></div><span class="st"></span><button class="opt" type="button" title="Clip settings">⋯</button>`;
+    d.querySelector('.nm').textContent = c.name;
+    d.addEventListener('click', ev => { if (ev.target.closest('.opt')) return openPop(c.id, ev.target.closest('.opt')); launch(c.id); });
+    box.append(d);
+  }
+  paint();
+}
+let lastSig = '';
 function paint(){
   const now = ctx.currentTime;
-  for (const d of Object.values(D)){
-    deckEl(d.id).querySelector('.dname').textContent = d.api ? d.name : 'loading…';
-    if (!d.api) continue;
-    const on = d.api.info().playing;
-    if (d.stopAt != null && now < d.stopAt) setState(d.id, 'stopping on the beat', 'armed');
-    else if (on && d.startAt != null && now < d.startAt) setState(d.id, 'starts on the beat', 'armed');
-    else if (on) setState(d.id, 'playing', 'playing');
-    else setState(d.id, 'stopped');
+  let sig = '';
+  for (const c of clips.values()){ const st = clipState(c); sig += c.id + st; const d = document.querySelector(`.clip[data-id="${c.id}"]`); if (!d) continue;
+    if (d.dataset.st !== st){ d.dataset.st = st; d.className = 'clip' + (st ? ' ' + st : ''); d.querySelector('.st').textContent = ST_TEXT[st] || ''; } }
+  for (const s of ['a', 'b']){
+    const S = SIDES[s], el = sideEl(s), e = S.cur >= 0 ? S.engines[S.cur] : null, on = e && engPlaying(e) && e.endAt == null;
+    const c = on ? clips.get(e.clipId) : null;
+    const b = el.querySelector('.now b'), sm = el.querySelector('.now small');
+    const name = c ? c.name : 'Nothing playing'; if (b.textContent !== name) b.textContent = name;
+    const info = c ? `${clock.bpm.toFixed(clock.bpm % 1 ? 1 : 0)} bpm · ${(e.startAt != null && now < e.startAt) ? 'starts ' + bbS(e.startAt) : 'since ' + bbS(e.startAt)}` : S.pend ? (S.pend.phase === 'waiting' ? 'waiting for the fade to finish' : 'loading…') : ' ';
+    if (sm.textContent !== info) sm.textContent = info;
+    el.querySelector('.edit').disabled = !(e && e.clipId && engPlaying(e));
+    // channel meter
+    S.an.getFloatTimeDomainData(S.buf); let pk = 0; for (let i = 0; i < S.buf.length; i++){ const a = Math.abs(S.buf[i]); if (a > pk) pk = a; }
+    S.lvl = Math.max(pk, S.lvl * 0.9); document.querySelector(`[data-m="${s}"]`).style.height = Math.min(100, S.lvl * 100) + '%';
   }
-  const b = Math.floor(beatAt(now));
-  document.querySelectorAll('#beat i').forEach((i, k) => i.classList.toggle('lit', anyPlaying() && ((b % 4) + 4) % 4 === k));
+  const on = anyPlaying(), b = Math.floor(beatAt(now) + 1e-6);
+  $('pos').textContent = on ? bbS(now) : '–.–';
+  document.querySelectorAll('.screen .dots i').forEach((i, k) => { const lit = on && ((b % 4) + 4) % 4 === k; i.classList.toggle('lit', lit); i.classList.toggle('one', lit && k === 0); });
+  // tidy engines that have stopped
+  for (const e of Object.values(ENG)) if (e.endAt != null && now >= e.endAt + 0.05 && e.api && !e.api.info().playing){ e.endAt = null; if (SIDES[e.side].cur === e.n) SIDES[e.side].cur = -1; }
+  void sig;
 }
 (function loop(){ paint(); requestAnimationFrame(loop); })();
 
+/* ---------- controls ---------- */
+for (const s of ['a', 'b']){
+  const el = sideEl(s), box = el.querySelector('.clips');
+  el.querySelector('.add').addEventListener('click', () => { $('file').dataset.side = s; $('file').click(); });
+  el.querySelector('.stop').addEventListener('click', () => stopSide(s));
+  el.querySelector('.edit').addEventListener('click', () => openEdit(s));
+  box.addEventListener('dragover', ev => { ev.preventDefault(); box.classList.add('drop'); });
+  box.addEventListener('dragleave', () => box.classList.remove('drop'));
+  box.addEventListener('drop', ev => { ev.preventDefault(); box.classList.remove('drop'); addFiles(s, [...ev.dataTransfer.files]); });
+}
+$('file').addEventListener('change', e => { const f = [...e.target.files]; e.target.value = ''; addFiles(e.target.dataset.side || 'a', f); });
+function xfade(){
+  const x = +$('xf').value;
+  SIDES.a.xf.gain.setTargetAtTime(Math.cos(x * Math.PI / 2), ctx.currentTime, 0.01);
+  SIDES.b.xf.gain.setTargetAtTime(Math.sin(x * Math.PI / 2), ctx.currentTime, 0.01);
+}
+$('xf').addEventListener('input', () => { xfade(); saveSet(); });
+document.querySelectorAll('.gain').forEach(g => g.addEventListener('input', () => { SIDES[g.dataset.s].ch.gain.setTargetAtTime(+g.value, ctx.currentTime, 0.01); saveSet(); }));
+$('mvol').addEventListener('input', e => { master.gain.setTargetAtTime(+e.target.value, ctx.currentTime, 0.01); saveSet(); });
+$('bpm').addEventListener('change', e => setTempo(e.target.value));
+$('quant').addEventListener('change', saveSet);
+document.addEventListener('keydown', e => { if (e.key === 'Escape'){ closePop(); closeEdit(); } });
+
+/* ---------- settings (this app's own key) ---------- */
+const SET = 'thunderperform-settings-v1';
+function saveSet(){ try { localStorage.setItem(SET, JSON.stringify({bpm:clock.bpm, quant:$('quant').value, xf:$('xf').value, mvol:$('mvol').value,
+  ga:document.querySelector('.gain[data-s="a"]').value, gb:document.querySelector('.gain[data-s="b"]').value})); } catch(e){} }
+try { const v = JSON.parse(localStorage.getItem(SET) || 'null'); if (v){
+  clock.bpm = +v.bpm || 120; $('bpm').value = clock.bpm; $('quant').value = v.quant || '4'; $('xf').value = v.xf ?? 0.5; $('mvol').value = v.mvol ?? 0.9;
+  document.querySelector('.gain[data-s="a"]').value = v.ga ?? 1; document.querySelector('.gain[data-s="b"]').value = v.gb ?? 1;
+  master.gain.value = +$('mvol').value; SIDES.a.ch.gain.value = +v.ga || 1; SIDES.b.ch.gain.value = +v.gb || 1; } } catch(e){}
+xfade();
+
 $('go').addEventListener('click', async () => {
   await ctx.resume(); $('start').remove();
-  loadDeck('a'); loadDeck('b');
+  for (const e of Object.values(ENG)) startEngine(e);
 });
-window.__perform = {D, clock, play, stop, setTempo, nextBoundary};   // for tests
+dbAll().then(all => { for (const c of all) clips.set(c.id, c); drawClips('a'); drawClips('b'); });
+window.__perform = {SIDES, ENG, clips, clock, launch, stopSide, setTempo, addFiles, nextBoundary};   // for tests
 })();
 </script>
 </body>

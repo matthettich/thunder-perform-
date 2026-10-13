@@ -3,11 +3,23 @@
 A live performance app for ...Thunder Plus projects, laid out like a DJ setup: clips (project files) on two
 decks either side of a mixer. For computers only.
 
-**Status:** sync test. Two decks, one shared clock, quantized play/stop, tempo, channel gains and a crossfader.
+**Status:** clips and transitions. Each side has a column of clips (...Thunder Plus project files). Click one
+to launch it on the next beat, bar, 2 or 4 bars; it takes over from the clip playing on its side with its own
+transition: a **hard cut**, or an equal-power **crossfade** over 1, 2, 4, 8 or 16 bars. Mixer: channel faders with
+meters, crossfader, master. **Edit** shows the playing clip's deck full size; **Keep changes in clip** saves the
+edits into the clip.
 
 ## How it works
 
-- Each deck is a real ...Thunder Plus page in a frame, opened as `thunder-plus/index.html?deck=a` (or `b`).
+- Each side has **two engines**, each a real ...Thunder Plus page in a hidden frame (`thunder-plus/index.html?deck=a1`,
+  `a2`, `b1`, `b2`), so a side can play its current clip and the next one at once during a crossfade.
+  - Engine input → engine gain (the transition fades) → side channel fader → crossfader → master.
+  - A launch loads the clip into the side's idle engine (in that deck's Worker, so the playing clip isn't
+    disturbed), waits if that engine is still fading out, starts it on the next boundary and hands over.
+    A clip already loaded in the idle engine starts with no load at all.
+  - The first clip launched when nothing plays sets the tempo to its own. After that every clip plays at the
+    master tempo (tempo ramps are the next step).
+- **Clips** are stored in this app's IndexedDB (`thunderperform`), settings under `thunderperform-settings-v1`.
 - `thunder-plus/` is a **git submodule pinned to one commit of the `deck` branch** of `matthettich/thunder-plus`.
   - Thunder Plus's `main` branch and its live page never get deck mode.
   - Work on Thunder Plus can't break this app. To bring it in, merge `main` into `deck`, then bump the pin
@@ -18,19 +30,25 @@ decks either side of a mixer. For computers only.
     start, so a deck never reads or changes the saved song, kit or samples of ...Thunder Plus.
   - It has no service worker or update checks.
   - Each audio worklet is added to the shared context once (`__thunderPerform.once`), for both decks.
-  - `window.__deck`: `ready()`, `open(projectText)`, `play(at, row)`, `stop(at)`, `setBpm(bpm, at)`, `info()`.
+  - `window.__deck`: `ready()`, `open(projectText)`, `play(at, row)`, `stop(at)`, `setBpm(bpm, at)`, `info()`, `save()`.
+  - `ready()` waits for the deck's Worker to render every pad (falling back to the page thread only without one).
     Times are on the shared AudioContext clock.
 - **The clock** (this page): beats count from an anchor; a tempo change re-anchors so the beat count never
   jumps. A launch waits for the next beat, bar, 2 or 4 bars.
 
 ## Verified (headless Chromium, 13 Oct 2026)
 
-- Both decks started at one time: the first sound is on the same sample on both, and the audio was
-  bit-identical in 9 of 10 runs. The other run differed in sound only, not timing; probably a background pad render
-  landing during the first play.
-- A deck launched while the other plays starts exactly on the next bar (sample-accurate).
-- A tempo change reaches both decks; stop lands on the bar.
-- Nothing is written to the page's real localStorage; only the two `thunderdeck-*` sample databases exist.
+- **Sync:** two decks started at one time begin on the same sample; their audio was bit-identical in 9 of 10
+  runs. The other run differed in sound, not timing; probably a background pad render landing during the
+  first play.
+- **Launch:** a deck launched while the other plays starts exactly on the next bar.
+- **Crossfade:** a 2-bar crossfade started on the bar 2 bars after the first clip. The gains followed the
+  equal-power curve, the old clip stopped exactly 2 bars later, and its engine was free again.
+- **Hard cut:** landed on the bar, reusing the already-loaded engine (about 4 ms, no reload).
+- **No stalls:** while a clip loaded (about 2 s, in the background), the longest page stall was 62–74 ms, inside
+  the sequencer's 150 ms lead.
+- **Storage:** nothing is written to ...Thunder Plus's storage; only `thunderperform-settings-v1` and the
+  `thunderdeck-*` sample databases.
 
 ## Running it locally
 
@@ -44,7 +62,7 @@ Then open http://127.0.0.1:8741/ and press **Start audio**.
 
 ## Next
 
-1. Clip columns per deck (project files, kept in IndexedDB), with per-clip transition and length.
-2. Transitions: hard cut, crossfade, tempo ramp, sequence morph.
+1. Tempo ramp transition (pull the master tempo to the incoming clip's over its length).
+2. Sequence morph between the outgoing and incoming patterns.
 3. Momentary FX per side.
-4. Live editing: show a deck's frame full size to edit its song in the tracker.
+4. MIDI/keyboard launching.
