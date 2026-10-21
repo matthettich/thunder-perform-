@@ -66,3 +66,15 @@ Then open http://127.0.0.1:8741/ and press **Start audio**.
 2. Sequence morph between the outgoing and incoming patterns.
 3. Momentary FX per side.
 4. MIDI/keyboard launching.
+
+## To update later: ...Thunder Plus changes since the pin (noted 20 Oct 2026)
+
+- **The decks are behind.** The `thunder-plus` pin (`937e278` on `deck`) predates a lot of work on ...Thunder Plus's
+  `main` (Arrange as the Song screen, MIDI sequencing, new engines and effects, Renoise-style keys…). Before relying on
+  it, merge `main` into `deck`, bump the pin (see How it works) and run the checks under Verified again.
+- **More tracks (planned in ...Thunder Plus, not started).** ...Thunder Plus may raise its track limit from 32 to as many
+  as 128. The plan keeps song files readable here: tracks 1–32 and the master column stay where they are, and tracks 33+
+  (and their block mutes) go in a separate section of the song. When that lands, update this app: merge `main` into
+  `deck`, bump the pin, and test a clip that uses tracks above 32 (it plays, mutes hold, a crossfade and a hard cut work,
+  CPU with many tracks). This page has no per-track code of its own (the mixer is per side), so the deck is what
+  changes. Details: ...Thunder Plus's `HANDOVER.md`, Open items, "More tracks than 32".
